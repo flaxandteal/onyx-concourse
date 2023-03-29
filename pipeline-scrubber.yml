@@ -1,0 +1,37 @@
+resource_types:
+- name: pull-request
+  type: docker-image
+  source:
+    repository: teliaoss/github-pr-resource
+
+resources:
+- name: dp-nlp-search-scrubber
+  type: pull-request
+  check_every: 5m
+  webhook_token: ((webhook-token))
+  source:
+    repository: flaxandteal/onyx-dp-search-scrubber-api
+    access_token: ((github-access-token))
+
+jobs:
+- name: job-dp-nlp-search-scrubber-build
+  public: true
+  plan:
+  - get: dp-nlp-search-scrubber
+    trigger: true
+    version: every
+  - put: dp-nlp-search-scrubber
+    params:
+      path: dp-nlp-search-scrubber
+      status: pending
+  - task: unit
+    file: dp-nlp-search-scrubber/ci/unit.yml
+    on_failure:
+      put: dp-nlp-search-scrubber
+      params:
+        path: dp-nlp-search-scrubber
+        status: failure
+  - put: dp-nlp-search-scrubber
+    params:
+      path: dp-nlp-search-scrubber
+      status: success
