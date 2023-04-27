@@ -12,9 +12,54 @@ resources:
   source:
     repository: flaxandteal/onyx-dp-search-scrubber-api
     access_token: ((github-access-token))
-
+    
 jobs:
-- name: job-dp-nlp-search-scrubber-build
+- name: audit
+  public: true
+  plan:
+  - get: dp-nlp-search-scrubber
+    trigger: true
+    version: every
+  - put: dp-nlp-search-scrubber
+    params:
+      path: dp-nlp-search-scrubber
+      status: pending
+  - task: audit
+    file: dp-nlp-search-scrubber/ci/audit.yml
+    on_failure:
+      put: dp-nlp-search-scrubber
+      params:
+        path: dp-nlp-search-scrubber
+        status: failure
+  - put: dp-nlp-search-scrubber
+    params:
+      path: dp-nlp-search-scrubber
+      status: success
+
+# For testing purposes removed until all the lint errors are fixed
+# - name: lint
+#   public: true
+#   plan:
+#   - get: dp-nlp-search-scrubber
+#     trigger: true
+#     version: every
+#   - put: dp-nlp-search-scrubber
+#     params:
+#       path: dp-nlp-search-scrubber
+#       status: pending
+#   - task: lint
+#     file: dp-nlp-search-scrubber/ci/lint.yml
+#     on_failure:
+#       put: dp-nlp-search-scrubber
+#       params:
+#         path: dp-nlp-search-scrubber
+#         status: failure
+#   - put: dp-nlp-search-scrubber
+#     params:
+#       path: dp-nlp-search-scrubber
+#       status: success
+
+- name: unit
   public: true
   plan:
   - get: dp-nlp-search-scrubber
@@ -26,6 +71,50 @@ jobs:
       status: pending
   - task: unit
     file: dp-nlp-search-scrubber/ci/unit.yml
+    on_failure:
+      put: dp-nlp-search-scrubber
+      params:
+        path: dp-nlp-search-scrubber
+        status: failure
+  - put: dp-nlp-search-scrubber
+    params:
+      path: dp-nlp-search-scrubber
+      status: success
+
+- name: component
+  public: true
+  plan:
+  - get: dp-nlp-search-scrubber
+    trigger: true
+    version: every
+  - put: dp-nlp-search-scrubber
+    params:
+      path: dp-nlp-search-scrubber
+      status: pending
+  - task: component
+    file: dp-nlp-search-scrubber/ci/component.yml
+    on_failure:
+      put: dp-nlp-search-scrubber
+      params:
+        path: dp-nlp-search-scrubber
+        status: failure
+  - put: dp-nlp-search-scrubber
+    params:
+      path: dp-nlp-search-scrubber
+      status: success
+
+- name: build
+  public: true
+  plan:
+  - get: dp-nlp-search-scrubber
+    trigger: true
+    version: every
+  - put: dp-nlp-search-scrubber
+    params:
+      path: dp-nlp-search-scrubber
+      status: pending
+  - task: build
+    file: dp-nlp-search-scrubber/ci/build.yml
     on_failure:
       put: dp-nlp-search-scrubber
       params:
