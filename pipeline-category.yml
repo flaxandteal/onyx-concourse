@@ -7,60 +7,74 @@ resource_types:
 resources:
 - name: dp-nlp-category-api
   type: pull-request
-  check_every: 5m
+  check_every: 1m
   webhook_token: ((webhook-token))
   source:
     repository: flaxandteal/onyx-dp-nlp-category-api
     access_token: ((github-access-token))
 
 jobs:
-- name: job-dp-nlp-category-api-build
+- name: unit-testing
   public: true
   plan:
   - get: dp-nlp-category-api
     trigger: true
     version: every
-  # task: step
-  # config:
-  #   inputs:
-  #   - name: dp-nlp-category-api
-  #   platform: linux
-  #   image_resource:
-  #     type: registry-image
-  #     source: { repository: busybox }
-  #   run:
-  #     path: sh
-  #     args:
-  #     - -exc
-  #     - ls && pwd && env
   - put: dp-nlp-category-api
     params:
       path: dp-nlp-category-api
       status: pending
-  - task: lint
-    file: dp-nlp-category-api/ci/lint.yml
-    on_failure:
-      put: dp-nlp-category-api
-      params:
-        path: dp-nlp-category-api
-        status: failure
-        comment: "Failed linting"
-  - task: unit
+  - task: running-unit-tests
     file: dp-nlp-category-api/ci/unit.yml
     on_failure:
       put: dp-nlp-category-api
       params:
         path: dp-nlp-category-api
         status: failure
-        comment: "Failed unit test"
-  - task: audit
-    file: dp-nlp-category-api/ci/audit.yml
+  - put: dp-nlp-category-api
+    params:
+      path: dp-nlp-category-api
+      status: success
+
+- name: component-testing
+  public: true
+  plan:
+  - get: dp-nlp-category-api
+    trigger: true
+    version: every
+  - put: dp-nlp-category-api
+    params:
+      path: dp-nlp-category-api
+      status: pending
+  - task: running-component-tests
+    file: dp-nlp-category-api/ci/component.yml
     on_failure:
       put: dp-nlp-category-api
       params:
         path: dp-nlp-category-api
         status: failure
-        comment: "Failed audit"
+  - put: dp-nlp-category-api
+    params:
+      path: dp-nlp-category-api
+      status: success
+      
+- name: build
+  public: true
+  plan:
+  - get: dp-nlp-category-api
+    trigger: true
+    version: every
+  - put: dp-nlp-category-api
+    params:
+      path: dp-nlp-category-api
+      status: pending
+  - task: build
+    file: dp-nlp-category-api/ci/build.yml
+    on_failure:
+      put: dp-nlp-category-api
+      params:
+        path: dp-nlp-category-api
+        status: failure
   - put: dp-nlp-category-api
     params:
       path: dp-nlp-category-api
