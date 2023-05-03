@@ -14,6 +14,28 @@ resources:
     access_token: ((github-access-token))
 
 jobs:
+- name: lint
+  public: true
+  plan:
+  - get: dp-nlp-category-api
+    trigger: true
+    version: every
+  - put: dp-nlp-category-api
+    params:
+      path: dp-nlp-category-api
+      status: pending
+  - task: running-linting-process
+    file: dp-nlp-category-api/ci/lint.yml
+    on_failure:
+      put: dp-nlp-category-api
+      params:
+        path: dp-nlp-category-api
+        status: failure
+  - put: dp-nlp-category-api
+    params:
+      path: dp-nlp-category-api
+      status: success
+
 - name: unit-testing
   public: true
   plan:
