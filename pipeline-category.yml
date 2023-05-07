@@ -12,9 +12,18 @@ resources:
   source:
     repository: flaxandteal/onyx-dp-nlp-category-api
     access_token: ((github-access-token))
+    # access_token: {SECRET: ((github-access-token))}
+- name: ff_fasttext_api
+  type: registry-image
+  icon: docker
+  source:
+    repository: flaxandteal/ff_fasttext_api
+    username: ((username))
+    password: ((password))
+    tag: latest
 
 jobs:
-- name: lint
+- name: validation
   public: true
   plan:
   - get: dp-nlp-category-api
@@ -24,80 +33,36 @@ jobs:
     params:
       path: dp-nlp-category-api
       status: pending
-  - task: running-linting-process
-    file: dp-nlp-category-api/ci/lint.yml
-    on_failure:
-      put: dp-nlp-category-api
-      params:
-        path: dp-nlp-category-api
-        status: failure
-  - put: dp-nlp-category-api
-    params:
-      path: dp-nlp-category-api
-      status: success
+  - in_parallel:
+    - task: lint
+      file: dp-nlp-category-api/ci/lint.yml
+      on_failure:
+        put: dp-nlp-category-api
+        params:
+          path: dp-nlp-category-api
+          status: "failed linting process"
+    - task: unit-testing
+      file: dp-nlp-category-api/ci/unit.yml
+      on_failure:
+        put: dp-nlp-category-api
+        params:
+          path: dp-nlp-category-api
+          status: "failed unit testing"
+    - task: component-testing
+      file: dp-nlp-category-api/ci/component.yml
+      on_failure:
+        put: dp-nlp-category-api
+        params:
+          path: dp-nlp-category-api
+          status: "failed component testing"
 
-- name: unit-testing
-  public: true
+- name: build-and-push
   plan:
   - get: dp-nlp-category-api
-    trigger: true
-    version: every
-  - put: dp-nlp-category-api
-    params:
-      path: dp-nlp-category-api
-      status: pending
-  - task: running-unit-tests
-    file: dp-nlp-category-api/ci/unit.yml
-    on_failure:
-      put: dp-nlp-category-api
-      params:
-        path: dp-nlp-category-api
-        status: failure
-  - put: dp-nlp-category-api
-    params:
-      path: dp-nlp-category-api
-      status: success
-
-- name: component-testing
-  public: true
-  plan:
-  - get: dp-nlp-category-api
-    trigger: true
-    version: every
-  - put: dp-nlp-category-api
-    params:
-      path: dp-nlp-category-api
-      status: pending
-  - task: running-component-tests
-    file: dp-nlp-category-api/ci/component.yml
-    on_failure:
-      put: dp-nlp-category-api
-      params:
-        path: dp-nlp-category-api
-        status: failure
-  - put: dp-nlp-category-api
-    params:
-      path: dp-nlp-category-api
-      status: success
-      
-- name: build
-  public: true
-  plan:
-  - get: dp-nlp-category-api
-    trigger: true
-    version: every
-  - put: dp-nlp-category-api
-    params:
-      path: dp-nlp-category-api
-      status: pending
-  - task: build
+    passed: [validation]
+  - task: build-task-image
+    privileged: true
     file: dp-nlp-category-api/ci/build.yml
-    on_failure:
-      put: dp-nlp-category-api
-      params:
-        path: dp-nlp-category-api
-        status: failure
-  - put: dp-nlp-category-api
+  - put: ff_fasttext_api
     params:
-      path: dp-nlp-category-api
-      status: success
+      image: image/image.tar
