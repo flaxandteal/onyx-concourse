@@ -5,90 +5,90 @@ resource_types:
     repository: teliaoss/github-pr-resource
 
 resources:
-- name: dp-nlp-search-scrubber
+- name: dp-search-api
   type: pull-request
-  check_every: 5m
+  check_every: 15s
   webhook_token: ((webhook-token))
   source:
-    repository: flaxandteal/onyx-dp-search-scrubber-api
+    repository: flaxandteal/dp-search-api
     access_token: ((github-access-token))
-    
-- name: scrubber-api
+
+- name: search
   type: registry-image
   icon: docker
   source:
-    repository: flaxandteal/scrubber-api
+    repository: flaxandteal/dp-search-api
     username: ((username))
     password: ((password))
     tag: latest
-
+    
 jobs:
 - name: validation
   public: true
   plan:
-  - get: dp-nlp-search-scrubber
+  - get: dp-search-api
     trigger: true
     version: every
-  - put: dp-nlp-search-scrubber
+  - put: dp-search-api
     params:
-      path: dp-nlp-search-scrubber
+      path: dp-search-api
       status: pending
   - in_parallel:
     - task: audit
-      file: dp-nlp-search-scrubber/ci/audit.yml
+      file: dp-search-api/ci/audit.yml
       on_failure:
-        put: dp-nlp-search-scrubber
+        put: dp-search-api
         params:
-          path: dp-nlp-search-scrubber
+          path: dp-search-api
           status: "failed audit process"
     - task: lint
-      file: dp-nlp-search-scrubber/ci/lint.yml
+      file: dp-search-api/ci/lint.yml
       on_failure:
-        put: dp-nlp-search-scrubber
+        put: dp-search-api
         params:
-          path: dp-nlp-search-scrubber
+          path: dp-search-api
           status: "failed linting process"
     - task: unit-testing
-      file: dp-nlp-search-scrubber/ci/unit.yml
+      file: dp-search-api/ci/unit.yml
       on_failure:
-        put: dp-nlp-search-scrubber
+        put: dp-search-api
         params:
-          path: dp-nlp-search-scrubber
+          path: dp-search-api
           status: "failed unit testing"
     - task: component-testing
-      file: dp-nlp-search-scrubber/ci/component.yml
+      file: dp-search-api/ci/component.yml
       on_failure:
-        put: dp-nlp-search-scrubber
+        put: dp-search-api
         params:
-          path: dp-nlp-search-scrubber
+          path: dp-search-api
           status: "failed component testing"
 
 - name: build
   public: true
   plan:
-  - get: dp-nlp-search-scrubber
+  - get: dp-search-api
     trigger: true
     passed: [validation]
     version: every
-  - put: dp-nlp-search-scrubber
+  - put: dp-search-api
     params:
-      path: dp-nlp-search-scrubber
+      path: dp-search-api
       status: pending
   - task: build
-    file: dp-nlp-search-scrubber/ci/build.yml
+    file: dp-search-api/ci/build.yml
     on_failure:
-      put: dp-nlp-search-scrubber
+      put: dp-search-api
       params:
-        path: dp-nlp-search-scrubber
+        path: dp-search-api
         status: failure
-  - put: dp-nlp-search-scrubber
+  - put: dp-search-api
     params:
-      path: dp-nlp-search-scrubber
+      path: dp-search-api
       status: success
 
 - name: build-image-and-push
   plan:
-  - get: dp-nlp-search-scrubber
+  - get: dp-search-api
     trigger: true
     version: every
     passed: [validation, build]
@@ -101,14 +101,14 @@ jobs:
         source:
           repository: concourse/oci-build-task
       inputs:
-      - name: dp-nlp-search-scrubber
+      - name: dp-search-api
       outputs:
       - name: image
       params:
-        CONTEXT: dp-nlp-search-scrubber/
-        DOCKERFILE: dp-nlp-search-scrubber/Dockerfile
+        CONTEXT: dp-search-api/
+        DOCKERFILE: dp-search-api/Dockerfile
       run:
         path: build
-  - put: scrubber-api
+  - put: search
     params:
       image: image/image.tar

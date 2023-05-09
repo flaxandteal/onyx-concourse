@@ -34,6 +34,13 @@ jobs:
       path: dp-nlp-category-api
       status: pending
   - in_parallel:
+    - task: audit
+      file: dp-nlp-category-api/ci/audit.yml
+      on_failure:
+        put: dp-nlp-category-api
+        params:
+          path: dp-nlp-category-api
+          status: "failed audit process"
     - task: lint
       file: dp-nlp-category-api/ci/lint.yml
       on_failure:
@@ -59,6 +66,8 @@ jobs:
 - name: build-and-push
   plan:
   - get: dp-nlp-category-api
+    trigger: true
+    version: every
     passed: [validation]
   - task: build-task-image
     privileged: true

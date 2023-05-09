@@ -13,30 +13,17 @@ resources:
     repository: flaxandteal/onyx-dp-nlp-berlin-api
     access_token: ((github-access-token))
 
-jobs:
-- name: unit-testing
-  public: true
-  plan:
-  - get: dp-nlp-berlin-api
-    trigger: true
-    version: every
-  - put: dp-nlp-berlin-api
-    params:
-      path: dp-nlp-berlin-api
-      status: pending
-  - task: running-unit-tests
-    file: dp-nlp-berlin-api/ci/unit.yml
-    on_failure:
-      put: dp-nlp-berlin-api
-      params:
-        path: dp-nlp-berlin-api
-        status: failure
-  - put: dp-nlp-berlin-api
-    params:
-      path: dp-nlp-berlin-api
-      status: success
+- name: berlin-api
+  type: registry-image
+  icon: docker
+  source:
+    repository: flaxandteal/berlin_api
+    username: ((username))
+    password: ((password))
+    tag: latest
 
-- name: audit
+jobs:
+- name: validation
   public: true
   plan:
   - get: dp-nlp-berlin-api
@@ -46,36 +33,45 @@ jobs:
     params:
       path: dp-nlp-berlin-api
       status: pending
-  - task: running-component-tests
-    file: dp-nlp-berlin-api/ci/audit.yml
-    on_failure:
-      put: dp-nlp-berlin-api
-      params:
-        path: dp-nlp-berlin-api
-        status: failure
-  - put: dp-nlp-berlin-api
-    params:
-      path: dp-nlp-berlin-api
-      status: success
-      
-- name: build
-  public: true
+  - in_parallel:
+    - task: audit
+      file: dp-nlp-berlin-api/ci/audit.yml
+      on_failure:
+        put: dp-nlp-berlin-api
+        params:
+          path: dp-nlp-berlin-api
+          status: "failed auditing process"
+    - task: lint
+      file: dp-nlp-berlin-api/ci/lint.yml
+      on_failure:
+        put: dp-nlp-berlin-api
+        params:
+          path: dp-nlp-berlin-api
+          status: "failed linting process"
+    - task: unit-testing
+      file: dp-nlp-berlin-api/ci/unit.yml
+      on_failure:
+        put: dp-nlp-berlin-api
+        params:
+          path: dp-nlp-berlin-api
+          status: "failed unit testing"
+    - task: component-testing
+      file: dp-nlp-berlin-api/ci/component.yml
+      on_failure:
+        put: dp-nlp-berlin-api
+        params:
+          path: dp-nlp-berlin-api
+          status: "failed component testing"
+
+- name: build-and-push
   plan:
   - get: dp-nlp-berlin-api
     trigger: true
     version: every
-  - put: dp-nlp-berlin-api
-    params:
-      path: dp-nlp-berlin-api
-      status: pending
-  - task: build
+    passed: [validation]
+  - task: build-task-image
+    privileged: true
     file: dp-nlp-berlin-api/ci/build.yml
-    on_failure:
-      put: dp-nlp-berlin-api
-      params:
-        path: dp-nlp-berlin-api
-        status: failure
-  - put: dp-nlp-berlin-api
+  - put: berlin-api
     params:
-      path: dp-nlp-berlin-api
-      status: success
+      image: image/image.tar
