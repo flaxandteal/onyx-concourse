@@ -21,7 +21,7 @@ resources:
     username: ((username))
     password: ((password))
     tag: latest
-    
+
 jobs:
 - name: validation
   public: true
@@ -63,36 +63,15 @@ jobs:
           path: dp-search-api
           status: "failed component testing"
 
-- name: build
-  public: true
+- name: build-and-deploy
   plan:
   - get: dp-search-api
     trigger: true
-    passed: [validation]
     version: every
-  - put: dp-search-api
-    params:
-      path: dp-search-api
-      status: pending
+    passed: [validation]
   - task: build
     file: dp-search-api/ci/build.yml
-    on_failure:
-      put: dp-search-api
-      params:
-        path: dp-search-api
-        status: failure
-  - put: dp-search-api
-    params:
-      path: dp-search-api
-      status: success
-
-- name: build-image-and-push
-  plan:
-  - get: dp-search-api
-    trigger: true
-    version: every
-    passed: [validation, build]
-  - task: build-task-image
+  - task: deploy
     privileged: true
     config:
       platform: linux
@@ -101,12 +80,12 @@ jobs:
         source:
           repository: concourse/oci-build-task
       inputs:
-      - name: dp-search-api
+      - name: build
       outputs:
       - name: image
       params:
-        CONTEXT: dp-search-api/
-        DOCKERFILE: dp-search-api/Dockerfile
+        CONTEXT: build/
+        DOCKERFILE: build/Dockerfile.concourse
       run:
         path: build
   - put: search

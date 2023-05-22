@@ -13,7 +13,7 @@ resources:
     repository: flaxandteal/onyx-dp-search-scrubber-api
     access_token: ((github-access-token))
     
-- name: scrubber-api
+- name: scrubber-docker-repo
   type: registry-image
   icon: docker
   source:
@@ -63,36 +63,15 @@ jobs:
           path: dp-nlp-search-scrubber
           status: "failed component testing"
 
-- name: build
-  public: true
+- name: build-and-deploy
   plan:
   - get: dp-nlp-search-scrubber
     trigger: true
-    passed: [validation]
     version: every
-  - put: dp-nlp-search-scrubber
-    params:
-      path: dp-nlp-search-scrubber
-      status: pending
+    passed: [validation]
   - task: build
     file: dp-nlp-search-scrubber/ci/build.yml
-    on_failure:
-      put: dp-nlp-search-scrubber
-      params:
-        path: dp-nlp-search-scrubber
-        status: failure
-  - put: dp-nlp-search-scrubber
-    params:
-      path: dp-nlp-search-scrubber
-      status: success
-
-- name: build-image-and-push
-  plan:
-  - get: dp-nlp-search-scrubber
-    trigger: true
-    version: every
-    passed: [validation, build]
-  - task: build-task-image
+  - task: deploy
     privileged: true
     config:
       platform: linux
@@ -101,14 +80,14 @@ jobs:
         source:
           repository: concourse/oci-build-task
       inputs:
-      - name: dp-nlp-search-scrubber
+      - name: build
       outputs:
       - name: image
       params:
-        CONTEXT: dp-nlp-search-scrubber/
-        DOCKERFILE: dp-nlp-search-scrubber/Dockerfile
+        CONTEXT: build/
+        DOCKERFILE: build/Dockerfile.concourse
       run:
         path: build
-  - put: scrubber-api
+  - put: scrubber-docker-repo
     params:
       image: image/image.tar
