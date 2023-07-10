@@ -14,7 +14,7 @@ resources:
     access_token: ((github-access-token))
     # access_token: {SECRET: ((github-access-token))}
 - name: ff_fasttext_api
-  type: registry-image
+  type: docker-image
   icon: docker
   source:
     repository: flaxandteal/ff_fasttext_api
@@ -64,5 +64,10 @@ jobs:
     privileged: true
     file: dp-nlp-category-api/ci/build.yml
   - put: ff_fasttext_api
+    get_params:
+      skip_download: true
     params:
-      image: image/image.tar
+      tag: dp-nlp-category-api/.git/resource/head_sha
+      build: build/
+      dockerfile: build/Dockerfile.concourse
+      tag_prefix: concourse-

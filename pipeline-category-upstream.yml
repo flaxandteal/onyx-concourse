@@ -1,0 +1,60 @@
+resource_types:
+- name: pull-request
+  type: docker-image
+  source:
+    repository: teliaoss/github-pr-resource
+
+resources:
+- name: dp-nlp-category-api
+  type: pull-request
+  check_every: 1m
+  webhook_token: ((webhook-token))
+  source:
+    repository: ONSdigital/dp-nlp-category-api
+    access_token: ((github-access-token))
+    # access_token: {SECRET: ((github-access-token))}
+- name: ff_fasttext_api
+  type: docker-image
+  icon: docker
+  source:
+    repository: flaxandteal/ff_fasttext_api
+    username: ((username))
+    password: ((password))
+    tag: latest
+
+jobs:
+- name: validation
+  plan:
+  - get: dp-nlp-category-api
+    trigger: true
+    version: every
+  - in_parallel:
+      steps:
+      - file: dp-nlp-category-api/ci/audit.yml
+        task: audit
+      - file: dp-nlp-category-api/ci/lint.yml
+        task: lint
+      - file: dp-nlp-category-api/ci/unit.yml
+        task: unit-testing
+      - file: dp-nlp-category-api/ci/component.yml
+        task: component-testing
+  public: true
+
+- name: build-and-push
+  plan:
+  - get: dp-nlp-category-api
+    passed:
+    - validation
+    trigger: true
+    version: every
+  - file: dp-nlp-category-api/ci/build.yml
+    privileged: true
+    task: build-task-image
+  - put: ff_fasttext_api
+    get_params:
+      skip_download: true
+    params:
+      tag: dp-nlp-category-api/.git/resource/head_sha
+      build: build/
+      dockerfile: build/Dockerfile.concourse
+      tag_prefix: concourse-us-
